@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id           String      @id @default(cuid())
+  username     String      @unique
+  passwordHash String
+  name         String?
+  lastName     String?
+  email        String?
+  avatarUrl    String?
+  role         String      @default("engineer") // "admin" | "engineer"
+  createdAt    DateTime    @default(now())
+  quotations   Quotation[]
+}
+
+model Quotation {
+  id            String   @id @default(cuid())
+  shareableId   String   @unique @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Client info
+  clientName    String
+  clientEmail   String?
+  clientPhone   String?
+  clientAddress String?
+  country       String?  @default("Colombia")
+  state         String?  // departamento
+  city          String?  // ciudad
+  latitude      Float?
+  longitude     Float?
+
+  // Solar system params
+  consumoKwh    Float?   // kWh/mes
+  tarifaKwh     Float?   // $/kWh
+  contribucion  Float?   // %
+  alumbrado     Float?   // %
+  autoconsumo   Float?   // %
+  hbs           Float?   // horas brillo solar
+  generacion    Float?   // kWh/mes planta
+  adicionales   Float?   // $ extra
+  descuento     Float?   // %
+  costoTotal    Float?   // $ costo total del proyecto
+  ahorroMes     Float?   // $ ahorro mensual estimado
+
+  // Workflow
+  isOfficial    Boolean  @default(false)
+  notes         String?
+
+  // Technical visit (Visita Técnica) — used when promoting to official
+  imagePath     String?
+  visitNotes    String?  // annotations / notes on the visit
+  annotationData String? // JSON: editor annotations (lines, arrows, labels, etc.)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  versions      QuotationVersion[]
+}
+
+model QuotationVersion {
+  id          String   @id @default(cuid())
+  quotationId String
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  snapshot    String   // full JSON snapshot of quotation at save time
+  editedBy    String   // userId who made the edit
+  createdAt   DateTime @default(now())
+
+  @@index([quotationId])
+}
