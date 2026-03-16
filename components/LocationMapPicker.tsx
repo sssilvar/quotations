@@ -63,7 +63,6 @@ export function LocationMapPicker({
         touchZoom={allowMapGestures}
         boxZoom={!readOnly}
         keyboard={!readOnly}
-        tap={!readOnly}
       >
         <MapTileLayer />
         {!readOnly && <MapClickHandler onSelect={handleSelect} />}

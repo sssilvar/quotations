@@ -44,7 +44,7 @@ export async function POST(req: Request) {
   }
 
   const ahorroMes = parseOptionalNumber(body.ahorroMes);
-  if (!Number.isFinite(ahorroMes) || ahorroMes <= 0) {
+  if (ahorroMes == null || Number.isNaN(ahorroMes) || ahorroMes <= 0) {
     return NextResponse.json({ error: "ahorroMes required" }, { status: 400 });
   }
 

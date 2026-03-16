@@ -61,6 +61,7 @@ type Q = {
   adicionales?: number;
   descuento?: number;
   ahorroMes?: number;
+  costoTotal?: number;
   isOfficial: boolean;
   imagePath?: string;
   visitNotes?: string;
