@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import * as bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { getUserAvatarUrl } from "./user-avatar";
+import { ensureBootstrapAdmin } from "./bootstrap-admin";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -11,6 +12,7 @@ export const authOptions: NextAuthOptions = {
       credentials: { username: {}, password: {} },
       async authorize(credentials) {
         if (!credentials?.username || !credentials?.password) return null;
+        await ensureBootstrapAdmin();
         const user = await prisma.user.findUnique({
           where: { username: credentials.username },
         });
