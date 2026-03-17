@@ -2,8 +2,6 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -30,14 +28,8 @@ export async function POST(req: Request, ctx: Ctx) {
   if (!allowed.includes(file.type))
     return NextResponse.json({ error: "Invalid file type" }, { status: 400 });
 
-  const ext = file.name.split(".").pop() ?? "jpg";
-  const filename = `${id}.${ext}`;
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
-  await mkdir(uploadDir, { recursive: true });
   const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(uploadDir, filename), buffer);
-
-  const imagePath = `/uploads/${filename}`;
+  const imagePath = `data:${file.type};base64,${buffer.toString("base64")}`;
   const updated = await prisma.quotation.update({
     where: { id },
     data: { imagePath },

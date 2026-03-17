@@ -14,6 +14,7 @@ import { getAddressFieldsFromReverseGeocode } from "@/lib/address";
 import { getGeolocationErrorMessage, requestCurrentPosition } from "@/lib/geolocation";
 import { calculateSolarCost } from "@/lib/solar-cost";
 import { formatCurrency } from "@/lib/quotation-finance";
+import { preprocessUploadImage } from "@/lib/preprocess-upload-image";
 
 type Props = {
   onCreated: (createdId?: string) => void;
@@ -46,6 +47,7 @@ export function PreQuotationForm({ onCreated, onCancel }: Props) {
   const [form, setForm] = useState<Record<string, string>>({ country: DEFAULT_COUNTRY });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [processingImage, setProcessingImage] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [created, setCreated] = useState<{ id: string; shareableId: string } | null>(null);
@@ -57,7 +59,7 @@ export function PreQuotationForm({ onCreated, onCancel }: Props) {
     descuento: form.descuento ? Number(form.descuento) : null,
   });
 
-  function handleImageChange(f: File | null) {
+  async function handleImageChange(f: File | null) {
     if (!f) {
       setImageFile(null);
       setImagePreview(null);
@@ -71,8 +73,16 @@ export function PreQuotationForm({ onCreated, onCancel }: Props) {
       toast.error("JPG, PNG, GIF o WebP");
       return;
     }
-    setImageFile(f);
-    setImagePreview(URL.createObjectURL(f));
+    setProcessingImage(true);
+    try {
+      const processed = await preprocessUploadImage(f);
+      setImageFile(processed);
+      setImagePreview(URL.createObjectURL(processed));
+    } catch {
+      toast.error("No se pudo procesar la imagen");
+    } finally {
+      setProcessingImage(false);
+    }
   }
 
   function set(key: string, val: string) {
@@ -138,7 +148,10 @@ export function PreQuotationForm({ onCreated, onCancel }: Props) {
       const fd = new FormData();
       fd.append("image", imageFile);
       const up = await fetch(`/api/quotations/${q.id}/upload`, { method: "POST", body: fd });
-      if (!up.ok) toast.error("Cotización creada pero falló subir imagen");
+      if (!up.ok) {
+        const payload = (await up.json().catch(() => null)) as { error?: string } | null;
+        toast.error(payload?.error || "Cotización creada pero falló subir imagen");
+      }
     }
     setLoading(false);
     setCreated({ id: q.id, shareableId: q.shareableId });
@@ -401,7 +414,7 @@ export function PreQuotationForm({ onCreated, onCancel }: Props) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => handleImageChange(null)}
+                  onClick={() => void handleImageChange(null)}
                 >
                   <X className="mr-1 size-3.5" /> Quitar imagen
                 </Button>
@@ -413,7 +426,9 @@ export function PreQuotationForm({ onCreated, onCancel }: Props) {
                 className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/40 py-6 text-sm text-muted-foreground hover:bg-muted/60"
               >
                 <Upload className="size-4" />
-                Añadir imagen (JPG, PNG, GIF, WebP · máx. {MAX_IMAGE_MB}MB)
+                {processingImage
+                  ? "Optimizando imagen…"
+                  : `Añadir imagen (JPG, PNG, GIF, WebP · máx. ${MAX_IMAGE_MB}MB)`}
               </button>
             )}
             <input
@@ -421,14 +436,14 @@ export function PreQuotationForm({ onCreated, onCancel }: Props) {
               type="file"
               accept={IMAGE_TYPES.join(",")}
               className="hidden"
-              onChange={(e) => handleImageChange(e.target.files?.[0] ?? null)}
+              onChange={(e) => void handleImageChange(e.target.files?.[0] ?? null)}
             />
           </CardContent>
         </Card>
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button type="submit" className="w-full" disabled={loading || processingImage}>
           {loading ? "Guardando…" : "Crear pre-cotización"}
         </Button>
       </form>
